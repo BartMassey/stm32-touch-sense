@@ -5,14 +5,16 @@ readme = "README.md"
 name = "touchwire"
 version = "0.1.0"
 
-[dependencies.aux5]
-path = "auxiliary"
+#[dependencies.aux5]
+#path = "auxiliary"
 
 [dependencies]
+cortex-m = "0.7.2"
+cortex-m-rt = "0.6.14"
+stm32f3-discovery = "0.7.0"
+panic-semihosting = "*"
 volatile = "0.4.3"
-
-# Uncomment for the panic example.
-# panic-itm = "0.4.1"
+cortex-m-semihosting = "*"
 
 # Uncomment for the allocator example.
 # alloc-cortex-m = "0.4.0"
