@@ -1,4 +1,3 @@
-#![allow(unused)]
 #![no_std]
 #![no_main]
 
@@ -14,11 +13,10 @@ use panic_semihosting as _; // logs messages to the host stderr; requires a debu
 
 use cortex_m_semihosting::hio;
 use core::fmt::Write;
-use cortex_m::{iprint, iprintln};
 use cortex_m_rt::entry;
 
 use stm32f3_discovery::{leds::Leds, stm32f3xx_hal, switch_hal};
-use switch_hal::{ActiveHigh, OutputSwitch, Switch, ToggleableOutputSwitch};
+use switch_hal::{ActiveHigh, OutputSwitch, Switch};
 
 use stm32f3xx_hal::prelude::*;
 
@@ -28,12 +26,11 @@ use stm32f3xx_hal::{
     hal::blocking::delay::DelayMs,
     pac,
     pac::TSC,
-    pac::tsc::*,
 };
 
 #[derive(Debug,Clone,Copy,PartialEq,Eq)]
 enum TscError {
-    Timeout,
+    _Timeout,
 }
 
 fn init_tsc(tsc: &mut TSC) {
@@ -138,7 +135,8 @@ fn main() -> ! {
     };
     let mut wait = |ms| delay.delay_ms(ms);
 
-    writeln!(stdout, "hello, world");
+    writeln!(stdout, "starting acq").unwrap();
+    led(0, true);
 
     init_tsc(&mut tsc);
 
