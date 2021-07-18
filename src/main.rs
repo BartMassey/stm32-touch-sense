@@ -31,27 +31,40 @@ use stm32f3xx_hal::{
     pac::tsc::*,
 };
 
-fn initialize(tsc: &mut TSC) {
-    // enable TSC
-    tsc.cr.write(|w| w.sse().set_bit());
+#[derive(Debug,Clone,Copy,PartialEq,Eq)]
+enum TscError {
+    Timeout,
+}
 
-    // set all functions
+fn init_tsc(tsc: &mut TSC) {
+    // Set up control register.
+    tsc.cr.write(|w| {
+        unsafe {
+            w
+                .ctph().bits(0xf)
+                .ctpl().bits(0xf)
+                .ssd().bits(0x7f)
+                .sse().set_bit()
+                .sspsc().set_bit()
+                .pgpsc().bits(0x7)
+                .mcv().bits(0x6)   // max pulses = 16383
+                .syncpol().clear_bit()
+                .am().clear_bit()
+                .tsce().set_bit()
+        }
+    });
 
-    unsafe { tsc.cr.write(|w| w
-                          .ctph().bits(2)
-                          .ctpl().bits(2)
-                          .ssd().bits(1)
-                          .sse().set_bit()
-                          .sspsc().set_bit()
-                          .pgpsc().bits(1)
-                          .mcv().bits(2)
-                          .syncpol().clear_bit()
-                          .am().set_bit())
-    }
+    // Use group 1 input 1 as channel I/O.
+    tsc.ioccr.write(|w| w.g1_io1().set_bit());
+
+    // Disable group 1 input 2 Schmidt trigger.
+    tsc.iohcr.write(|w| w.g1_io2().clear_bit());
+
+    // Use group 1 input 2 as sampling capacitor.
+    tsc.ioscr.write(|w| w.g1_io2().set_bit());
 }
 
 fn discharge(tsc: &mut TSC, enable: bool) {
-
     if enable {
         tsc.cr.write(|w| w.iodef().clear_bit());
     } else {
@@ -59,55 +72,32 @@ fn discharge(tsc: &mut TSC, enable: bool) {
     }
 }
 
-fn ioconfig() {
-    todo!()
-}
+fn get_value(tsc: &mut TSC) -> Result<u16, TscError> {
+    // Clear events from last acquisition.
+    tsc.icr.write(|w| {
+        w
+            .mceic().set_bit()
+            .eoaic().set_bit()
+    });
+    
+    // Enable g1 acquisition.
+    tsc.iogcsr.write(|w| w.g1e().set_bit());
 
-fn start() {
-    todo!()
-}
+    // Start an acquisition.
+    tsc.cr.write(|w| w.start().set_bit());
 
+    // Poll for acquisition completion.
+    while ! tsc.iogcsr.read().g1s().bit() {
+        // spin
+    }
 
-#[derive(Debug,Clone,Copy,PartialEq,Eq)]
-enum Error {
-    Timeout,
-    Invalid,
-    MiscError,
-}
-
-#[derive(Debug,Clone,Copy,PartialEq,Eq)]
-enum TscState {
-    Reset,
-    Ready,
-    Busy,
-    Error,
-}
-
-fn getstate() -> Result<TscState,Error> {
-    todo!()
-}
-
-fn poll() -> Result<(),Error> {
-    todo!()
-}
-
-#[derive(Debug,Clone,Copy,PartialEq,Eq)]
-enum TscGroupStatus {
-    Ongoing,
-    Completed,
-}
-
-fn status() -> Result<TscGroupStatus,Error> {
-    todo!()
-}
-
-fn get_value() -> u32 {
-    todo!()
+    let value = tsc.iog1cr.read().cnt().bits();
+    Ok(value)
 }
 
 type LedArray = [Switch<gpioe::PEx<Output<PushPull>>, ActiveHigh>; 8];
 
-fn init() -> (Delay, LedArray, hio::HStdout, TSC) {
+fn init_periphs() -> (Delay, LedArray, hio::HStdout, TSC) {
     let device_periphs = pac::Peripherals::take().unwrap();
     let mut reset_and_clock_control = device_periphs.RCC.constrain();
 
@@ -139,44 +129,30 @@ fn init() -> (Delay, LedArray, hio::HStdout, TSC) {
 
 #[entry]
 fn main() -> ! {
-    let (mut delay, mut leds, mut stdout, mut tsc) = init();
-    let period = 100_u16;
-
+    let (mut delay, mut leds, mut stdout, mut tsc) = init_periphs();
     let mut led = |i: usize, state: bool| {
         match state {
             true => leds[i & 7].on().ok(),
             false => leds[i & 7].off().ok(),
         }
     };
-    let mut wait = || delay.delay_ms(period);
+    let mut wait = |ms| delay.delay_ms(ms);
 
     writeln!(stdout, "hello, world");
 
-    initialize(&mut tsc);
+    init_tsc(&mut tsc);
 
     loop {
-        wait();
         discharge(&mut tsc, true);
-        wait();
+        wait(10u32);
         discharge(&mut tsc, false);
-        wait();
-        ioconfig();
-        start();
-        poll();
-
-        let s = match status() {
+        let value = match get_value(&mut tsc) {
             Err(e) => {
                 writeln!(stdout, "error: {:?}", e).unwrap();
                 continue;
             }
             Ok(v) => v,
         };
-        if (s != TscGroupStatus::Completed) {
-            writeln!(stdout, "status: {:?}", s).unwrap();
-            continue;
-        }
-
-        let value: u32 = get_value();
         writeln!(stdout, "value: {}", value).unwrap();
     }
 }
