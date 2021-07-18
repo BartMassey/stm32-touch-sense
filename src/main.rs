@@ -11,9 +11,9 @@ use panic_semihosting as _; // logs messages to the host stderr; requires a debu
 
 // STM cube code: https://github.com/STMicroelectronics/STM32CubeF3.git
 
-use cortex_m_semihosting::hio;
 use core::fmt::Write;
 use cortex_m_rt::entry;
+use cortex_m_semihosting::hio;
 
 use stm32f3_discovery::{leds::Leds, stm32f3xx_hal, switch_hal};
 use switch_hal::{ActiveHigh, OutputSwitch, Switch};
@@ -28,7 +28,7 @@ use stm32f3xx_hal::{
     pac::TSC,
 };
 
-#[derive(Debug,Clone,Copy,PartialEq,Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TscError {
     _Timeout,
 }
@@ -37,17 +37,26 @@ fn init_tsc(tsc: &mut TSC) {
     // Set up control register.
     tsc.cr.write(|w| {
         unsafe {
-            w
-                .ctph().bits(0xf)
-                .ctpl().bits(0xf)
-                .ssd().bits(0x7f)
-                .sse().set_bit()
-                .sspsc().set_bit()
-                .pgpsc().bits(0x7)
-                .mcv().bits(0x6)   // max pulses = 16383
-                .syncpol().clear_bit()
-                .am().clear_bit()
-                .tsce().set_bit()
+            w.ctph()
+                .bits(0xf)
+                .ctpl()
+                .bits(0xf)
+                .ssd()
+                .bits(0x7f)
+                .sse()
+                .set_bit()
+                .sspsc()
+                .set_bit()
+                .pgpsc()
+                .bits(0x7)
+                .mcv()
+                .bits(0x6) // max pulses = 16383
+                .syncpol()
+                .clear_bit()
+                .am()
+                .clear_bit()
+                .tsce()
+                .set_bit()
         }
     });
 
@@ -71,12 +80,8 @@ fn discharge(tsc: &mut TSC, enable: bool) {
 
 fn get_value(tsc: &mut TSC) -> Result<u16, TscError> {
     // Clear events from last acquisition.
-    tsc.icr.write(|w| {
-        w
-            .mceic().set_bit()
-            .eoaic().set_bit()
-    });
-    
+    tsc.icr.write(|w| w.mceic().set_bit().eoaic().set_bit());
+
     // Enable g1 acquisition.
     tsc.iogcsr.write(|w| w.g1e().set_bit());
 
@@ -84,7 +89,7 @@ fn get_value(tsc: &mut TSC) -> Result<u16, TscError> {
     tsc.cr.write(|w| w.start().set_bit());
 
     // Poll for acquisition completion.
-    while ! tsc.iogcsr.read().g1s().bit() {
+    while !tsc.iogcsr.read().g1s().bit() {
         // spin
     }
 
@@ -127,11 +132,9 @@ fn init_periphs() -> (Delay, LedArray, hio::HStdout, TSC) {
 #[entry]
 fn main() -> ! {
     let (mut delay, mut leds, mut stdout, mut tsc) = init_periphs();
-    let mut led = |i: usize, state: bool| {
-        match state {
-            true => leds[i & 7].on().ok(),
-            false => leds[i & 7].off().ok(),
-        }
+    let mut led = |i: usize, state: bool| match state {
+        true => leds[i & 7].on().ok(),
+        false => leds[i & 7].off().ok(),
     };
     let mut wait = |ms| delay.delay_ms(ms);
 
