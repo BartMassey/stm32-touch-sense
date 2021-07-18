@@ -124,7 +124,7 @@ fn init_periphs() -> (Delay, LedArray, hio::HStdout, TSC) {
 
     let stdout = hio::hstdout().unwrap();
 
-    return (delay, leds.into_array(), stdout, tsc);
+    (delay, leds.into_array(), stdout, tsc)
 }
 
 #[entry]
