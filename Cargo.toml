@@ -2,36 +2,19 @@
 authors = ["Bart Massey <bart.massey@gmail.com>"]
 edition = "2018"
 readme = "README.md"
-name = "tsc"
+name = "touch_sense"
 version = "0.1.0"
 
-#[dependencies.aux5]
-#path = "auxiliary"
-
 [dependencies]
+stm32f3xx-hal = "0.7.0"
+
+[dev-dependencies]
 cortex-m = "0.7.2"
 cortex-m-rt = "0.6.14"
 cortex-m-semihosting = "0.3.7"
 panic-semihosting = "0.5.6"
 stm32f3-discovery = "0.7.0"
-stm32f3xx-hal = "0.7.0"
 volatile = "0.4.3"
-
-# Uncomment for the allocator example.
-# alloc-cortex-m = "0.4.0"
-
-# Uncomment for the device example.
-# Update `memory.x`, set target to `thumbv7em-none-eabihf` in `.cargo/config`,
-# and then use `cargo build --examples device` to build it.
-# [dependencies.stm32f3]
-# features = ["stm32f303", "rt"]
-# version = "0.7.1"
-
-# this lets you use `cargo fix`!
-#[[bin]]
-#name = "touchwire"
-#test = false
-#bench = false
 
 [profile.release]
 codegen-units = 1 # better optimizations
