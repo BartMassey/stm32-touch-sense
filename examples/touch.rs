@@ -22,16 +22,20 @@ use touch_sense::*;
 type LedArray = [Switch<gpioe::PEx<Output<PushPull>>, ActiveHigh>; 8];
 
 fn init_periphs() -> (Delay, LedArray, hio::HStdout, TouchSense) {
+
     let device_periphs = pac::Peripherals::take().unwrap();
-    let mut reset_and_clock_control = device_periphs.RCC.constrain();
+    let mut rcc = device_periphs.RCC.constrain();
 
     let core_periphs = cortex_m::Peripherals::take().unwrap();
     let mut flash = device_periphs.FLASH.constrain();
-    let clocks = reset_and_clock_control.cfgr.freeze(&mut flash.acr);
+    let clocks = rcc.cfgr.freeze(&mut flash.acr);
     let delay = Delay::new(core_periphs.SYST, clocks);
 
+    let mut stdout = hio::hstdout().unwrap();
+
     // initialize tsc
-    let mut gpiod = device_periphs.GPIOD.split(&mut reset_and_clock_control.ahb);
+    unsafe { &(*pac::RCC::ptr()).ahbenr.write(|w| w.tscen().set_bit()) };
+    let mut gpiod = device_periphs.GPIOD.split(&mut rcc.ahb);
     let _pd13 = gpiod.pd13.into_af3_push_pull(
         &mut gpiod.moder,
         &mut gpiod.otyper,
@@ -44,10 +48,10 @@ fn init_periphs() -> (Delay, LedArray, hio::HStdout, TouchSense) {
     );
     let tsc = device_periphs.TSC;
     let touch_sense = TouchSense::new(tsc);
-
+    writeln!(stdout, "initial cr: {:0x}", touch_sense.cr()).unwrap();
 
     // initialize user leds
-    let mut gpioe = device_periphs.GPIOE.split(&mut reset_and_clock_control.ahb);
+    let mut gpioe = device_periphs.GPIOE.split(&mut rcc.ahb);
     let leds = Leds::new(
         gpioe.pe8,
         gpioe.pe9,
@@ -60,8 +64,6 @@ fn init_periphs() -> (Delay, LedArray, hio::HStdout, TouchSense) {
         &mut gpioe.moder,
         &mut gpioe.otyper,
     );
-
-    let stdout = hio::hstdout().unwrap();
 
     (delay, leds.into_array(), stdout, touch_sense)
 }
@@ -81,6 +83,7 @@ fn main() -> ! {
         
         loop {
             led(0, true);
+            writeln!(stdout, "cr: {:08x}, isr: {:08x}", sensor.cr(), sensor.isr()).unwrap();
             match sensor.poll() {
                 TscState::Busy => (),
                 TscState::Overrun => {

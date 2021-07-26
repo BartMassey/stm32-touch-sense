@@ -15,39 +15,61 @@ pub struct TouchSenseRead<'a>(&'a mut TSC);
 
 impl TouchSense {
 
+    pub fn cr(&self) -> u32 {
+        let tsc = &self.0;
+        tsc.cr.read().bits()
+    }
+
     pub fn new(tsc: TSC) -> TouchSense {
         // Set up control register.
         tsc.cr.write(|w| {
             unsafe {
                 w
-
+                    // Charge transfer pulse high (clocks)
                     .ctph()
                     .bits(0xf)
 
+                    // Charge transfer pulse low (clocks)
                     .ctpl()
                     .bits(0xf)
 
+                    // Spread spectrum (see manual)
                     .ssd()
                     .bits(0x7f)
 
+                    // Spread spectrum enable
                     .sse()
-                    .set_bit()
+                    .clear_bit()
 
+                    // Spread spectrum prescaler
                     .sspsc()
-                    .set_bit()
+                    .clear_bit()
 
+                    // Pulse generator prescaler (clock division)
                     .pgpsc()
                     .bits(0x7)
 
+                    // Max count value (counts)
                     .mcv()
                     .bits(0x6) // max pulses = 16383
 
+                    // I/O default mode
+                    .iodef()
+                    .clear_bit()
+
+                    // Sync pin polarity
                     .syncpol()
                     .clear_bit()
 
+                    // Acq mode
                     .am()
                     .clear_bit()
 
+                    // Start acq
+                    .start()
+                    .clear_bit()
+
+                    // TSC Enable
                     .tsce()
                     .set_bit()
             }
@@ -77,18 +99,18 @@ impl TouchSense {
         let tsc = &mut self.0;
 
         // Discharge the capacitors.
-        tsc.cr.write(|w| w.iodef().clear_bit());
+        tsc.cr.modify(|_, w| w.iodef().clear_bit());
         discharge_wait();
-        tsc.cr.write(|w| w.iodef().set_bit());
+        tsc.cr.modify(|_, w| w.iodef().set_bit());
 
         // Clear events from last acquisition.
-        tsc.icr.write(|w| w.mceic().set_bit().eoaic().set_bit());
+        tsc.icr.modify(|_, w| w.mceic().set_bit().eoaic().set_bit());
 
-        // Enable g1 acquisition.
-        tsc.iogcsr.write(|w| w.g1e().set_bit());
+        // Enable group acquisition.
+        tsc.iogcsr.write(|w| w.g8e().set_bit());
 
         // Start an acquisition.
-        tsc.cr.write(|w| w.start().set_bit());
+        tsc.cr.modify(|_, w| w.start().set_bit());
 
         TouchSenseRead(tsc)
     }
@@ -96,18 +118,26 @@ impl TouchSense {
 
 impl<'a> TouchSenseRead<'a> {
 
+    pub fn cr(&self) -> u32 {
+        self.0.cr.read().bits()
+    }
+
+    pub fn isr(&self) -> u32 {
+        self.0.isr.read().bits()
+    }
+
     pub fn poll(&mut self) -> TscState {
         let tsc = &mut self.0;
 
-        let icr = tsc.icr.read();
+        let isr = tsc.isr.read();
         // Check for overrun.
-        if icr.mceic().bit() {
+        if isr.mcef().bit() {
             return TscState::Overrun;
         }
 
         // Poll for acquisition completion.
-        if icr.eoaic().bit() {
-            let value = tsc.iog1cr.read().cnt().bits();
+        if isr.eoaf().bit() {
+            let value = tsc.iog8cr.read().cnt().bits();
             return TscState::Done(value);
         }
 

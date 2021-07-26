@@ -5,8 +5,9 @@ readme = "README.md"
 name = "touch_sense"
 version = "0.1.0"
 
-[dependencies]
-stm32f3xx-hal = "0.7.0"
+[dependencies.stm32f3xx-hal]
+version = "0.7.0"
+features = ["ld", "rt", "stm32f303xc"]
 
 [dev-dependencies]
 cortex-m = "0.7.2"
