@@ -1,7 +1,5 @@
 #![no_std]
 
-// STM cube code: https://github.com/STMicroelectronics/STM32CubeF3.git
-
 pub use stm32f3xx_hal::pac::TSC;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
