@@ -19,24 +19,35 @@ impl TouchSense {
         // Set up control register.
         tsc.cr.write(|w| {
             unsafe {
-                w.ctph()
+                w
+
+                    .ctph()
                     .bits(0xf)
+
                     .ctpl()
                     .bits(0xf)
+
                     .ssd()
                     .bits(0x7f)
+
                     .sse()
                     .set_bit()
+
                     .sspsc()
                     .set_bit()
+
                     .pgpsc()
                     .bits(0x7)
+
                     .mcv()
                     .bits(0x6) // max pulses = 16383
+
                     .syncpol()
                     .clear_bit()
+
                     .am()
                     .clear_bit()
+
                     .tsce()
                     .set_bit()
             }
@@ -96,10 +107,10 @@ impl<'a> TouchSenseRead<'a> {
 
         // Poll for acquisition completion.
         if icr.eoaic().bit() {
-            return TscState::Busy;
+            let value = tsc.iog1cr.read().cnt().bits();
+            return TscState::Done(value);
         }
 
-        let value = tsc.iog1cr.read().cnt().bits();
-        TscState::Done(value)
+        TscState::Busy
     }
 }

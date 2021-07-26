@@ -29,8 +29,22 @@ fn init_periphs() -> (Delay, LedArray, hio::HStdout, TouchSense) {
     let mut flash = device_periphs.FLASH.constrain();
     let clocks = reset_and_clock_control.cfgr.freeze(&mut flash.acr);
     let delay = Delay::new(core_periphs.SYST, clocks);
+
+    // initialize tsc
+    let mut gpiod = device_periphs.GPIOD.split(&mut reset_and_clock_control.ahb);
+    let _pd13 = gpiod.pd13.into_af3_push_pull(
+        &mut gpiod.moder,
+        &mut gpiod.otyper,
+        &mut gpiod.afrh,
+    );
+    let _pd14 = gpiod.pd14.into_af3_push_pull(
+        &mut gpiod.moder,
+        &mut gpiod.otyper,
+        &mut gpiod.afrh,
+    );
     let tsc = device_periphs.TSC;
     let touch_sense = TouchSense::new(tsc);
+
 
     // initialize user leds
     let mut gpioe = device_periphs.GPIOE.split(&mut reset_and_clock_control.ahb);
@@ -62,13 +76,13 @@ fn main() -> ! {
     let mut wait = |ms| delay.delay_ms(ms);
 
     loop {
+        writeln!(stdout, "starting acq").unwrap();
         let mut sensor = touch_sense.start(|| wait(10u32));
         
         loop {
-            writeln!(stdout, "starting acq").unwrap();
             led(0, true);
             match sensor.poll() {
-                TscState::Busy => wait(100u32),
+                TscState::Busy => (),
                 TscState::Overrun => {
                     writeln!(stdout, "overrun").unwrap();
                     break;
