@@ -30,7 +30,8 @@ not at all ready for use yet, so *caveat emptor*.
 * Hook up an STM32F303VC Discovery Board to your Linux Box.
 
 * Connect a 47pF sampling capacitor between pins PD14 and
-  ground on the Disco Board. Connect a touchwire to PD13.
+  ground on the Disco Board. Connect a touchwire to PD13 via
+  1Kohm static protection resistor.
 
 * Start `openocd` at the project root from a separate terminal.
 
@@ -41,7 +42,8 @@ not at all ready for use yet, so *caveat emptor*.
 ## Acknowledgements
 
 Thanks much to Keith Packard, who helped me to figure stuff
-out and wrote the original code with me.
+out, wrote the original code with me, and helped me fix and
+debug the first working version.
 
 The `cortex-m-quickstart` template was really helpful here,
 as was the Embedded Rust Book and the Embedded Discovery
