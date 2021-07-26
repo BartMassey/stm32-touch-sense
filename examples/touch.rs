@@ -1,15 +1,7 @@
 #![no_std]
 #![no_main]
 
-// pick a panicking behavior
-// use panic_halt as _; // you can put a breakpoint on `rust_begin_unwind` to catch panics
-// use panic_abort as _; // requires nightly
-// use panic_itm as _; // logs messages over ITM; requires ITM support
 use panic_semihosting as _; // logs messages to the host stderr; requires a debugger
-
-// use aux5::{entry, Delay, DelayMs, LedArray, OutputSwitch};
-
-// STM cube code: https://github.com/STMicroelectronics/STM32CubeF3.git
 
 use core::fmt::Write;
 use cortex_m_rt::entry;
@@ -18,18 +10,18 @@ use cortex_m_semihosting::hio;
 use stm32f3_discovery::{leds::Leds, stm32f3xx_hal, switch_hal};
 use switch_hal::{ActiveHigh, OutputSwitch, Switch};
 
-use stm32f3xx_hal::prelude::*;
-
 use stm32f3xx_hal::{
+    prelude::*,
     delay::Delay,
     gpio::{gpioe, Output, PushPull},
     pac,
-    pac::TSC,
 };
+
+use touch_sense::*;
 
 type LedArray = [Switch<gpioe::PEx<Output<PushPull>>, ActiveHigh>; 8];
 
-fn init_periphs() -> (Delay, LedArray, hio::HStdout, TSC) {
+fn init_periphs() -> (Delay, LedArray, hio::HStdout, TouchSense) {
     let device_periphs = pac::Peripherals::take().unwrap();
     let mut reset_and_clock_control = device_periphs.RCC.constrain();
 
@@ -38,6 +30,7 @@ fn init_periphs() -> (Delay, LedArray, hio::HStdout, TSC) {
     let clocks = reset_and_clock_control.cfgr.freeze(&mut flash.acr);
     let delay = Delay::new(core_periphs.SYST, clocks);
     let tsc = device_periphs.TSC;
+    let touch_sense = TouchSense::new(tsc);
 
     // initialize user leds
     let mut gpioe = device_periphs.GPIOE.split(&mut reset_and_clock_control.ahb);
@@ -56,34 +49,38 @@ fn init_periphs() -> (Delay, LedArray, hio::HStdout, TSC) {
 
     let stdout = hio::hstdout().unwrap();
 
-    (delay, leds.into_array(), stdout, tsc)
+    (delay, leds.into_array(), stdout, touch_sense)
 }
 
 #[entry]
 fn main() -> ! {
-    let (mut delay, mut leds, mut stdout, mut tsc) = init_periphs();
+    let (mut delay, mut leds, mut stdout, mut touch_sense) = init_periphs();
     let mut led = |i: usize, state: bool| match state {
         true => leds[i & 7].on().ok(),
         false => leds[i & 7].off().ok(),
     };
     let mut wait = |ms| delay.delay_ms(ms);
 
-    writeln!(stdout, "starting acq").unwrap();
-    led(0, true);
-
-    init_tsc(&mut tsc);
-
     loop {
-        discharge(&mut tsc, true);
-        wait(10u32);
-        discharge(&mut tsc, false);
-        let value = match get_value(&mut tsc) {
-            Err(e) => {
-                writeln!(stdout, "error: {:?}", e).unwrap();
-                continue;
+        let mut sensor = touch_sense.start(|| wait(10u32));
+        
+        loop {
+            writeln!(stdout, "starting acq").unwrap();
+            led(0, true);
+            match sensor.poll() {
+                TscState::Busy => wait(100u32),
+                TscState::Overrun => {
+                    writeln!(stdout, "overrun").unwrap();
+                    break;
+                }
+                TscState::Done(value) => {
+                    writeln!(stdout, "value: {}", value).unwrap();
+                    break;
+                }
             }
-            Ok(v) => v,
-        };
-        writeln!(stdout, "value: {}", value).unwrap();
+        }
+        writeln!(stdout, "ending acq").unwrap();
+        led(0, false);
+        wait(1000u32);
     }
 }

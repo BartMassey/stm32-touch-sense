@@ -11,15 +11,13 @@ pub enum TscState {
     Overrun,
 }
 
-pub struct TouchSense<'a>(&'a mut TSC);
-
-pub struct TouchSenseStart<'a>(&'a mut TSC);
+pub struct TouchSense(TSC);
 
 pub struct TouchSenseRead<'a>(&'a mut TSC);
 
-impl<'a> TouchSense<'a> {
+impl TouchSense {
 
-    pub fn init(tsc: &'a mut TSC) -> TouchSenseStart<'a> {
+    pub fn new(tsc: TSC) -> TouchSense {
         // Set up control register.
         tsc.cr.write(|w| {
             unsafe {
@@ -59,13 +57,15 @@ impl<'a> TouchSense<'a> {
         // Use group input as sampling capacitor.
         tsc.ioscr.write(|w| w.g8_io3().set_bit());
 
-        TouchSenseStart(tsc)
+        Self(tsc)
     }
-}
 
-impl<'a> TouchSenseStart<'a> {
-    pub fn start<T: FnOnce()>(self, discharge_wait: T) -> TouchSenseRead<'a> {
-        let tsc = self.0;
+    pub fn into_inner(self) -> TSC {
+        self.0
+    }
+
+    pub fn start<T: FnOnce()>(&mut self, discharge_wait: T) -> TouchSenseRead {
+        let tsc = &mut self.0;
 
         // Discharge the capacitors.
         tsc.cr.write(|w| w.iodef().clear_bit());
@@ -89,13 +89,15 @@ impl<'a> TouchSenseRead<'a> {
 
     pub fn poll(&mut self) -> TscState {
         let tsc = &mut self.0;
+
+        let icr = tsc.icr.read();
         // Check for overrun.
-        if !tsc.iogcsr.read().g1e().bit() {
+        if icr.mceic().bit() {
             return TscState::Overrun;
         }
 
         // Poll for acquisition completion.
-        if !tsc.iogcsr.read().g1s().bit() {
+        if icr.eoaic().bit() {
             return TscState::Busy;
         }
 
