@@ -31,7 +31,7 @@ fn init_periphs() -> (Delay, LedArray, hio::HStdout, TouchSense) {
     let clocks = rcc.cfgr.freeze(&mut flash.acr);
     let delay = Delay::new(core_periphs.SYST, clocks);
 
-    let mut stdout = hio::hstdout().unwrap();
+    let stdout = hio::hstdout().unwrap();
 
     // initialize tsc
     unsafe { &(*pac::RCC::ptr()).ahbenr.write(|w| w.tscen().set_bit()) };
