@@ -25,6 +25,19 @@ stage. Much is hard-coded that should not be, and
 development and debugging is still in progress. Things are
 not at all ready for use yet, so *caveat emptor*.
 
+## Running The Touch Example
+
+* Hook up an STM32F303VC Discovery Board to your Linux Box.
+
+* Connect a 47pF sampling capacitor between pins PD14 and
+  ground on the Disco Board. Connect a touchwire to PD13.
+
+* Start `openocd` at the project root from a separate terminal.
+
+* `cargo run --release --example touch`
+
+* Watch the count values from the acquisitions.
+
 ## Acknowledgements
 
 Thanks much to Keith Packard, who helped me to figure stuff
