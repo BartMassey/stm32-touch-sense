@@ -48,7 +48,6 @@ fn init_periphs() -> (Delay, LedArray, hio::HStdout, TouchSense) {
     );
     let tsc = device_periphs.TSC;
     let touch_sense = TouchSense::new(tsc);
-    writeln!(stdout, "initial cr: {:0x}", touch_sense.cr()).unwrap();
 
     // initialize user leds
     let mut gpioe = device_periphs.GPIOE.split(&mut rcc.ahb);
@@ -83,7 +82,6 @@ fn main() -> ! {
         
         loop {
             led(0, true);
-            writeln!(stdout, "cr: {:08x}, isr: {:08x}", sensor.cr(), sensor.isr()).unwrap();
             match sensor.poll() {
                 TscState::Busy => (),
                 TscState::Overrun => {
