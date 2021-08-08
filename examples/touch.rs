@@ -28,7 +28,15 @@ fn init_periphs() -> (Delay, LedArray, hio::HStdout, TouchSense) {
 
     let core_periphs = cortex_m::Peripherals::take().unwrap();
     let mut flash = device_periphs.FLASH.constrain();
-    let clocks = rcc.cfgr.freeze(&mut flash.acr);
+    let clocks = rcc.cfgr
+        // The sysclk is equivalent to the core clock
+        .sysclk(48.MHz())
+        // Set the frequency for the AHB bus,
+        // which the root of every following clock peripheral
+        .hclk(48.MHz())
+        // Freeze / apply the configuration and setup all clocks
+        .freeze(&mut flash.acr);
+
     let delay = Delay::new(core_periphs.SYST, clocks);
 
     let stdout = hio::hstdout().unwrap();
@@ -74,28 +82,31 @@ fn main() -> ! {
         true => leds[i & 7].on().ok(),
         false => leds[i & 7].off().ok(),
     };
-    let mut wait = |ms| delay.delay_ms(ms);
+    let mut wait = |ms| delay.delay_us(ms);
 
     loop {
-        writeln!(stdout, "starting acq").unwrap();
-        let mut sensor = touch_sense.start(|| wait(10u32));
+        //writeln!(stdout, "starting acq").unwrap();
+        let mut sensor = touch_sense.start(|| wait(100u32));
         
         loop {
             led(0, true);
+            led(2, false);
             match sensor.poll() {
                 TscState::Busy => (),
                 TscState::Overrun => {
-                    writeln!(stdout, "overrun").unwrap();
+                    // writeln!(stdout, "overrun").unwrap();
+                    led(2, true);
                     break;
                 }
                 TscState::Done(value) => {
-                    writeln!(stdout, "value: {}", value).unwrap();
+                    // writeln!(stdout, "value: {}", value).unwrap();
+                    led(1, value <= 60);
                     break;
                 }
             }
         }
-        writeln!(stdout, "ending acq").unwrap();
+        //writeln!(stdout, "ending acq").unwrap();
         led(0, false);
-        wait(1000u32);
+        //wait(1000u32);
     }
 }

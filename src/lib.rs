@@ -22,11 +22,11 @@ impl TouchSense {
                 w
                     // Charge transfer pulse high (clocks)
                     .ctph()
-                    .bits(0xf)
+                    .bits(0x0)
 
                     // Charge transfer pulse low (clocks)
                     .ctpl()
-                    .bits(0xf)
+                    .bits(0x4)
 
                     // Spread spectrum (see manual)
                     .ssd()
@@ -42,7 +42,7 @@ impl TouchSense {
 
                     // Pulse generator prescaler (clock division)
                     .pgpsc()
-                    .bits(0x7)
+                    .bits(0x0)
 
                     // Max count value (counts)
                     .mcv()
@@ -75,13 +75,22 @@ impl TouchSense {
         // G8_IO3 is PD14, conflicts with TIM4_CH3
 
         // Use group pin as channel I/O.
-        tsc.ioccr.write(|w| w.g8_io2().set_bit());
+        tsc.ioccr.modify(|_, w| w.g8_io2().set_bit());
+
+        // Disable group pin Schmidt trigger.
+        tsc.iohcr.modify(|_, w| w.g8_io2().clear_bit());
 
         // Disable group input Schmidt trigger.
-        tsc.iohcr.write(|w| w.g8_io3().clear_bit());
+        tsc.iohcr.modify(|_, w| w.g8_io3().clear_bit());
+
+        // Disable group pin analog switch.
+        tsc.ioascr.modify(|_, w| w.g8_io2().set_bit());
+
+        // Disable group input analog switch.
+        tsc.ioascr.modify(|_, w| w.g8_io3().set_bit());
 
         // Use group input as sampling capacitor.
-        tsc.ioscr.write(|w| w.g8_io3().set_bit());
+        tsc.ioscr.modify(|_, w| w.g8_io3().set_bit());
 
         Self(tsc)
     }
@@ -102,7 +111,7 @@ impl TouchSense {
         tsc.icr.modify(|_, w| w.mceic().set_bit().eoaic().set_bit());
 
         // Enable group acquisition.
-        tsc.iogcsr.write(|w| w.g8e().set_bit());
+        tsc.iogcsr.modify(|_, w| w.g8e().set_bit());
 
         // Start an acquisition.
         tsc.cr.modify(|_, w| w.start().set_bit());
