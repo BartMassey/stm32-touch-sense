@@ -15,11 +15,6 @@ pub struct TouchSenseRead<'a>(&'a mut TSC);
 
 impl TouchSense {
 
-    pub fn cr(&self) -> u32 {
-        let tsc = &self.0;
-        tsc.cr.read().bits()
-    }
-
     pub fn new(tsc: TSC) -> TouchSense {
         // Set up control register.
         tsc.cr.write(|w| {
@@ -117,14 +112,6 @@ impl TouchSense {
 }
 
 impl<'a> TouchSenseRead<'a> {
-
-    pub fn cr(&self) -> u32 {
-        self.0.cr.read().bits()
-    }
-
-    pub fn isr(&self) -> u32 {
-        self.0.isr.read().bits()
-    }
 
     pub fn poll(&mut self) -> TscState {
         let tsc = &mut self.0;
