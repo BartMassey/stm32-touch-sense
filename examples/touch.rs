@@ -42,7 +42,8 @@ fn init_periphs() -> (Delay, LedArray, hio::HStdout, TouchSense) {
     let stdout = hio::hstdout().unwrap();
 
     // initialize tsc
-    unsafe { &(*pac::RCC::ptr()).ahbenr.write(|w| w.tscen().set_bit()) };
+    let ahbenr = unsafe { &(*pac::RCC::ptr()).ahbenr };
+    ahbenr.write(|w| w.tscen().set_bit());
     let mut gpiod = device_periphs.GPIOD.split(&mut rcc.ahb);
     let _pd13 = gpiod.pd13.into_af3_push_pull(
         &mut gpiod.moder,
