@@ -1,12 +1,23 @@
 #![no_std]
 #![no_main]
 
-use panic_semihosting as _; // logs messages to the host stderr; requires a debugger
+#[cfg(feature="touch_debug")]
+mod touch_debug {
+    pub(crate) use core::fmt::Write;
+    pub(crate) use cortex_m_semihosting::hio;
+    // logs messages to the host stderr; requires a debugger
+    pub(crate) use panic_semihosting as _;
+}
+#[cfg(feature="touch_debug")]
+use touch_debug::*;
 
-use core::fmt::Write;
+#[cfg(not(feature="touch_debug"))]
+#[panic_handler]
+fn panic(_: &core::panic::PanicInfo) -> ! {
+    loop {}
+}
+
 use cortex_m_rt::entry;
-use cortex_m_semihosting::hio;
-
 use stm32f3_discovery::{leds::Leds, stm32f3xx_hal, switch_hal};
 use switch_hal::{ActiveHigh, OutputSwitch, Switch};
 
@@ -17,11 +28,11 @@ use stm32f3xx_hal::{
     pac,
 };
 
-use touch_sense::*;
+use stm32_touch_sense::*;
 
 type LedArray = [Switch<gpioe::PEx<Output<PushPull>>, ActiveHigh>; 8];
 
-fn init_periphs() -> (Delay, LedArray, hio::HStdout, TouchSense) {
+fn init_periphs() -> (Delay, LedArray, TouchSense) {
 
     let device_periphs = pac::Peripherals::take().unwrap();
     let mut rcc = device_periphs.RCC.constrain();
@@ -38,8 +49,6 @@ fn init_periphs() -> (Delay, LedArray, hio::HStdout, TouchSense) {
         .freeze(&mut flash.acr);
 
     let delay = Delay::new(core_periphs.SYST, clocks);
-
-    let stdout = hio::hstdout().unwrap();
 
     // initialize tsc
     let ahbenr = unsafe { &(*pac::RCC::ptr()).ahbenr };
@@ -73,20 +82,23 @@ fn init_periphs() -> (Delay, LedArray, hio::HStdout, TouchSense) {
         &mut gpioe.otyper,
     );
 
-    (delay, leds.into_array(), stdout, touch_sense)
+    (delay, leds.into_array(), touch_sense)
 }
 
 #[entry]
 fn main() -> ! {
-    let (mut delay, mut leds, mut stdout, mut touch_sense) = init_periphs();
+    #[cfg(feature="touch_debug")]
+    let mut stdout = hio::hstdout().unwrap();
+    let (mut delay, mut leds, mut touch_sense) = init_periphs();
     let mut led = |i: usize, state: bool| match state {
         true => leds[i & 7].on().ok(),
         false => leds[i & 7].off().ok(),
     };
-    let mut wait = |ms| delay.delay_us(ms);
+    let mut wait = |us| delay.delay_us(us);
 
     loop {
-        //writeln!(stdout, "starting acq").unwrap();
+        #[cfg(feature="touch_debug")]
+        writeln!(stdout, "starting acq").unwrap();
         let mut sensor = touch_sense.start(|| wait(100u32));
         
         loop {
@@ -95,19 +107,23 @@ fn main() -> ! {
             match sensor.poll() {
                 TscState::Busy => (),
                 TscState::Overrun => {
-                    // writeln!(stdout, "overrun").unwrap();
+                    #[cfg(feature="touch_debug")]
+                    writeln!(stdout, "overrun").unwrap();
                     led(2, true);
                     break;
                 }
                 TscState::Done(value) => {
-                    // writeln!(stdout, "value: {}", value).unwrap();
+                    #[cfg(feature="touch_debug")]
+                    writeln!(stdout, "value: {}", value).unwrap();
                     led(1, value <= 60);
                     break;
                 }
             }
         }
-        //writeln!(stdout, "ending acq").unwrap();
+        #[cfg(feature="touch_debug")]
+        writeln!(stdout, "ending acq").unwrap();
         led(0, false);
-        //wait(1000u32);
+        #[cfg(feature="touch_debug")]
+        wait(1_000_000u32);
     }
 }
