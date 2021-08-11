@@ -65,7 +65,7 @@ fn init_periphs() -> (Delay, LedArray, TouchSense) {
         &mut gpiod.afrh,
     );
     let tsc = device_periphs.TSC;
-    let touch_sense = TouchSense::new(tsc);
+    let touch_sense = TouchSenseConfig::default().config(tsc);
 
     // initialize user leds
     let mut gpioe = device_periphs.GPIOE.split(&mut rcc.ahb);
