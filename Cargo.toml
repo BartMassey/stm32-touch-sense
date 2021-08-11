@@ -2,12 +2,17 @@
 authors = ["Bart Massey <bart.massey@gmail.com>"]
 edition = "2018"
 readme = "README.md"
-name = "touch_sense"
+name = "stm32-touch-sense"
 version = "0.1.0"
+
+[features]
+default = ["stm32f303xc"]
+stm32f303xc = ["stm32f3xx", "stm32f3xx-hal/stm32f303xc"]
+stm32f3xx = []
 
 [dependencies.stm32f3xx-hal]
 version = "0.7.0"
-features = ["ld", "rt", "stm32f303xc"]
+features = ["ld", "rt"]
 
 [dev-dependencies]
 cortex-m = "0.7.2"

@@ -1,5 +1,6 @@
 #![no_std]
 
+#[cfg(feature="stm32f3xx")]
 pub use stm32f3xx_hal::pac::TSC;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
